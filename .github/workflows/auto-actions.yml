@@ -2,8 +2,8 @@ name: Auto Contribution Actions
 
 on:
   schedule:
-    - cron: '0 12 * * *' 
-  workflow_dispatch:  
+    - cron: '0 12 * * *'  # Runs at 12:00 UTC every day
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   auto-tasks:
@@ -20,12 +20,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  
+          fetch-depth: 0  # Full history for better commit messages
 
       - name: Set Git config
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-actions@github.com"
+
+      - name: Get current date
+        id: date
+        run: echo "TODAY=$(date -u '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Update or create daily-log.txt
         run: |
@@ -37,11 +41,11 @@ jobs:
         with:
           github-token: ${{ secrets.MY_GITHUB_TOKEN }}
           script: |
-            const issueTitle = `Daily Report: ${new Date().toISOString().split('T')[0]}`;
+            const issueTitle = `Daily Report: ${{ steps.date.outputs.TODAY }}`;
             const issueBody = `
             # Daily Contribution Report
             
-            - Date: ${new Date().toISOString().split('T')[0]}
+            - Date: ${{ steps.date.outputs.TODAY }}
             - Run Number: ${process.env.GITHUB_RUN_NUMBER}
             
             This issue was automatically created by the auto-contrib-bot.
@@ -58,8 +62,8 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.MY_GITHUB_TOKEN }}
-          commit-message: "chore: daily update $(date -u '+%Y-%m-%d')"
-          title: "Daily Update: $(date -u '+%Y-%m-%d')"
+          commit-message: "chore: daily update ${{ steps.date.outputs.TODAY }}"
+          title: "Daily Update: ${{ steps.date.outputs.TODAY }}"
           body: |
             # Automated Daily Update
             
@@ -67,7 +71,7 @@ jobs:
             
             ## Changes:
             - Updated daily logs
-            - Added today's timestamp
+            - Added today's timestamp: ${{ steps.date.outputs.TODAY }}
           branch: "daily-update-branch"
           base: "main"
           delete-branch: true
