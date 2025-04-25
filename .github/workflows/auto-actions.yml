@@ -2,7 +2,7 @@ name: Auto Contribution Actions
 
 on:
   schedule:
-    - cron: '0 12 * * *'  
+    - cron: '0 12 * * *' 
   workflow_dispatch:  
 
 jobs:
@@ -32,12 +32,6 @@ jobs:
           echo "Updated on: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> daily-log.txt
           echo "Current run number: ${{ github.run_number }}" >> daily-log.txt
 
-      - name: Commit changes if needed
-        run: |
-          git add daily-log.txt
-          git diff --cached --quiet || git commit -m "chore: daily update $(date -u '+%Y-%m-%d')"
-          git push https://${{ secrets.MY_GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
-
       - name: Create an issue
         uses: actions/github-script@v6
         with:
@@ -64,7 +58,7 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.MY_GITHUB_TOKEN }}
-          commit-message: "feat: daily update PR"
+          commit-message: "chore: daily update $(date -u '+%Y-%m-%d')"
           title: "Daily Update: $(date -u '+%Y-%m-%d')"
           body: |
             # Automated Daily Update
@@ -77,6 +71,8 @@ jobs:
           branch: "daily-update-branch"
           base: "main"
           delete-branch: true
+          add-paths: |
+            daily-log.txt
 
       - name: Post Checkout repository
         run: echo "Main tasks completed."
