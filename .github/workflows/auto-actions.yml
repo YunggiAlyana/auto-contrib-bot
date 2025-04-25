@@ -1,53 +1,85 @@
-name: Auto Commit, Issue, and PR
+name: Auto Contribution Actions
 
 on:
   schedule:
-    - cron: '0 0 * * *'  
+    - cron: '0 12 * * *'  
   workflow_dispatch:  
 
 jobs:
   auto-tasks:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
 
     steps:
+      - name: Set up job
+        run: echo "Starting auto-contribution tasks..."
+
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  
 
       - name: Set Git config
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@github.com"
 
       - name: Update or create daily-log.txt
         run: |
-          FILE="daily-log.txt"
-          if [ ! -f "$FILE" ]; then
-            echo "# Daily Log" > "$FILE"
-          fi
-          echo "Updated on $(date -u)" >> "$FILE"
+          echo "Updated on: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> daily-log.txt
+          echo "Current run number: ${{ github.run_number }}" >> daily-log.txt
 
       - name: Commit changes if needed
         run: |
           git add daily-log.txt
           git diff --cached --quiet || git commit -m "chore: daily update $(date -u '+%Y-%m-%d')"
-          git push https://x-access-token:${{ secrets.MY_GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
+          git push https://${{ secrets.MY_GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
 
       - name: Create an issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@v6
         with:
+          github-token: ${{ secrets.MY_GITHUB_TOKEN }}
           script: |
-            const today = new Date().toISOString().slice(0, 10);
+            const issueTitle = `Daily Report: ${new Date().toISOString().split('T')[0]}`;
+            const issueBody = `
+            # Daily Contribution Report
+            
+            - Date: ${new Date().toISOString().split('T')[0]}
+            - Run Number: ${process.env.GITHUB_RUN_NUMBER}
+            
+            This issue was automatically created by the auto-contrib-bot.
+            `;
+            
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `Auto Issue - ${today}`,
-              body: `This issue was automatically created on ${today}.`,
+              title: issueTitle,
+              body: issueBody
             });
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v5
         with:
-          commit-message: "feat: auto PR for $(date -u '+%Y-%m-%d')"
-          branch: "auto/pr-$(date +%s)"
-          title: "Auto PR - $(date -u '+%Y-%m-%d')"
-          body: "This pull request was automatically created by GitHub Actions."
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
+          commit-message: "feat: daily update PR"
+          title: "Daily Update: $(date -u '+%Y-%m-%d')"
+          body: |
+            # Automated Daily Update
+            
+            This PR was automatically created by the auto-contrib-bot.
+            
+            ## Changes:
+            - Updated daily logs
+            - Added today's timestamp
+          branch: "daily-update-branch"
+          base: "main"
+          delete-branch: true
+
+      - name: Post Checkout repository
+        run: echo "Main tasks completed."
+        
+      - name: Complete job
+        run: echo "Auto-contribution tasks completed successfully!"
