@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}  
 
       - name: Set Git config
         run: |
@@ -48,7 +50,7 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: "feat: auto PR for $(date -u '+%Y-%m-%d')"
-          branch: "auto/pr-$(date +%s)" 
+          branch: "auto/pr-$(date +%s)"  
           title: "Auto PR - $(date -u '+%Y-%m-%d')"
           body: "This pull request was automatically created by GitHub Actions."
           push: true 
