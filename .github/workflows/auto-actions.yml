@@ -2,8 +2,10 @@ name: Auto Contribution Actions
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # Runs at 12:00 UTC every day
-  workflow_dispatch:  # Allows manual triggering
+    - cron: '0 12 * * 1,2,3,4,5'  # Setiap Senin sampai Jumat, jam 12:00 UTC (Commit bisa lebih dari sekali sehari)
+    - cron: '0 18 * * 1,2,3,4,5'  # Commit tambahan pada jam 18:00 UTC
+    - cron: '0 12 * * 2,4'        # Issue pada Selasa dan Kamis, jam 12:00 UTC
+  workflow_dispatch:  # Memungkinkan pemicu manual
 
 jobs:
   auto-tasks:
@@ -14,41 +16,42 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Set up job
-        run: echo "Starting auto-contribution tasks..."
+      - name: Memulai tugas auto-kontribusi
+        run: echo "Mulai menjalankan tugas auto-kontribusi..."
 
-      - name: Checkout repository
+      - name: Checkout repositori
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Full history for better commit messages
+          fetch-depth: 0  # Ambil seluruh riwayat untuk commit yang lebih detail
 
-      - name: Set Git config
+      - name: Setel konfigurasi Git
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-actions@github.com"
 
-      - name: Get current date
+      - name: Ambil tanggal hari ini
         id: date
         run: echo "TODAY=$(date -u '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - name: Update or create daily-log.txt
+      - name: Perbarui atau buat daily-log.txt
         run: |
-          echo "Updated on: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> daily-log.txt
-          echo "Current run number: ${{ github.run_number }}" >> daily-log.txt
+          echo "Diperbarui pada: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> daily-log.txt
+          echo "Nomor run saat ini: ${{ github.run_number }}" >> daily-log.txt
 
-      - name: Create an issue
+      - name: Buat issue baru (untuk Selasa dan Kamis)
+        if: github.event.schedule == '0 12 * * 2,4'  # Issue hanya pada Selasa dan Kamis
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.MY_GITHUB_TOKEN }}
           script: |
-            const issueTitle = `Daily Report: ${{ steps.date.outputs.TODAY }}`;
+            const issueTitle = `Laporan Harian: ${{ steps.date.outputs.TODAY }}`;
             const issueBody = `
-            # Daily Contribution Report
+            # Laporan Kontribusi Harian
             
-            - Date: ${{ steps.date.outputs.TODAY }}
-            - Run Number: ${process.env.GITHUB_RUN_NUMBER}
+            - Tanggal: ${{ steps.date.outputs.TODAY }}
+            - Nomor Run: ${process.env.GITHUB_RUN_NUMBER}
             
-            This issue was automatically created by the auto-contrib-bot.
+            Issue ini dibuat otomatis oleh auto-contrib-bot.
             `;
             
             await github.rest.issues.create({
@@ -58,28 +61,29 @@ jobs:
               body: issueBody
             });
 
-      - name: Create pull request
+      - name: Buat pull request (untuk Senin sampai Jumat)
+        if: github.event.schedule == '0 12 * * 1,2,3,4,5'  # Commit pada Senin sampai Jumat
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.MY_GITHUB_TOKEN }}
-          commit-message: "chore: daily update ${{ steps.date.outputs.TODAY }}"
-          title: "Daily Update: ${{ steps.date.outputs.TODAY }}"
+          commit-message: "chore: update harian ${{ steps.date.outputs.TODAY }}"
+          title: "Update Harian: ${{ steps.date.outputs.TODAY }}"
           body: |
-            # Automated Daily Update
+            # Pembaruan Harian Otomatis
             
-            This PR was automatically created by the auto-contrib-bot.
+            PR ini dibuat otomatis oleh auto-contrib-bot.
             
-            ## Changes:
-            - Updated daily logs
-            - Added today's timestamp: ${{ steps.date.outputs.TODAY }}
+            ## Perubahan:
+            - Diperbarui log harian
+            - Ditambahkan timestamp hari ini: ${{ steps.date.outputs.TODAY }}
           branch: "daily-update-branch"
           base: "main"
           delete-branch: true
           add-paths: |
             daily-log.txt
 
-      - name: Post Checkout repository
-        run: echo "Main tasks completed."
-        
-      - name: Complete job
-        run: echo "Auto-contribution tasks completed successfully!"
+      - name: Selesai checkout repositori
+        run: echo "Semua tugas utama selesai."
+
+      - name: Selesai menjalankan tugas
+        run: echo "Tugas auto-kontribusi berhasil dijalankan!"
